@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const websocket = require('ws');
+const port = 3000;
+const dbport = 27017
 
 //Middleware for module packages 
 const app = express();
@@ -11,7 +13,7 @@ app.use(express.json());
 
 main().catch(err => console.log(err));
 async function main() { 
-    await mongoose.connect('mongodb://localhost:27017/chatgpt-evaluation-db')
+    await mongoose.connect(`mongodb://localhost:${dbport}/chatgpt-evaluation-db`);
 };
 
 const {Schema} = mongoose; 
@@ -26,7 +28,7 @@ app.use('/api/add', (req,res,next) => {
     const a = parseInt(req.query.a);
     const b = parseInt(req.query.b);
 
-    if (!a || !b) {
+    if (req.query.a === undefined || req.query.b === undefined) {
         return res.status(400).send('A and B are empty');
     }
     else if (isNaN(a) || isNaN(b))
@@ -39,7 +41,7 @@ app.use('/api/add', (req,res,next) => {
 });
 
 app.get('/api/add', (req,res) => {
-    const a = req.a + req.b;
+    const result = req.a + req.b;
     res.json({result});
 });
 
@@ -60,3 +62,6 @@ app.get('/project', (req,res) => {
     res.send('HELLO PROJECT PAGE');
 });
 
+app.listen(port, () => {
+    console.log(`server running on http://localhost:${port}`)
+})
