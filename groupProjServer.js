@@ -2,11 +2,13 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const websocket = require('ws');
+const { WebSocketServer } = require('ws');
+const websocket = require('ws').Server;
 const port = 3000;
 const dbport = 27017
 
 //Middleware for module packages 
+const wss = new WebSocketServer({port: 8080})
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -45,7 +47,10 @@ app.get('/api/add', (req,res) => {
     res.json({result});
 });
 
-//Add welcome or sum like that for the home page then a please continue 
+//Add welcome or sum like that for the home page then a please continue
+app.get('/', (req,res) => {
+    res.redirect('/home');
+})
 app.get('/home', (req,res) => {
     res.send('HELLO HOMEPAGE');
 });
@@ -65,3 +70,12 @@ app.get('/project', (req,res) => {
 app.listen(port, () => {
     console.log(`server running on http://localhost:${port}`)
 })
+
+wss.on('connection', function (ws) { 
+    console.log('Connected to client')
+    ws.send("Connected to Server");
+    ws.on('message', function(message){
+        console.log(message);
+        console.log(message.toString('ascii'));
+    });
+});
