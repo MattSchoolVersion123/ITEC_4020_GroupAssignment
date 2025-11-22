@@ -20,22 +20,9 @@ app.use(cors());
 //Parses request bodies into the json format
 app.use(express.json());
 
-//If main() has an error it will display err in console log
-main().catch(err => console.log(err));
 
-//Creates an async func to start connection to mongodb
-async function main() { 
-    await mongoose.connect(`mongodb://localhost:${dbport}/chatgpt-evaluation-db`);
-};
+//PART ONE: WEBSITE DEVELOPMENT & HOSTING [BACKEND]
 
-//Generates schema for mongo db 
-const {Schema} = mongoose; 
-const chatgpt_eval_schema = new Schema ({
-    question: String,
-    expected_answer: String,
-    chatgpt_response: String,
-    domain: String
-});
 
 //Creates route to /api/add so that it can use the addition validation logic
 app.use('/api/add', (req,res,next) => {
@@ -102,3 +89,23 @@ wss.on('connection', function (ws) {
     });
 });
 
+
+//PART TWO: CHATGPT: EFFICIENCY EVALUATION [BACKEND]
+
+
+//If main() has an error it will display err in console log
+main().catch(err => console.log(err));
+
+//Creates an async func to start connection to mongodb
+async function main() { 
+    await mongoose.connect(`mongodb://localhost:${dbport}/chatgpt-evaluation-db`);
+};
+
+//Generates schema for mongo db 
+const {Schema} = mongoose; 
+const chatgpt_eval_schema = new Schema ({
+    question: String,
+    expected_answer: String,
+    chatgpt_response: String,
+    domain: String
+});
