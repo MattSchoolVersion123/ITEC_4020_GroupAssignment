@@ -4,6 +4,8 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { WebSocketServer } = require('ws');
 const websocket = require('ws').Server;
+const csv = require('csv-parser');
+const fs = require('fs');
 //Ports
 const port = 3000;
 const wsport = 8080;
@@ -110,3 +112,39 @@ const chatgpt_eval_schema = new Schema ({
     domain: String
 });
 
+//Creates an asynchronous function for CSV readability to DB loading
+async function CSVtoDBLoad(file,domain,model) {
+    //Firstly creates "data_rows": empty array to collect the objects from the key-value pairing    
+    const data_rows = [];
+    return new Promise((resolve, reject) => {
+        //Creates 
+        fs.createReadStream(file)
+            .pipe(csv({headers: false}))
+            .on('data',(row) => {
+                const row_values = Object.values(row);
+                data_rows.push({
+                    question: row_values[0],
+                    expected_answer: row_values[5],
+                    chatgpt_response: "",
+                    domain: domain
+                })
+            })
+            .on('end',async() => {
+                try {
+                    await model.insertMany(data_rows);
+                    resolve();
+                }
+                catch(err) {
+                    reject(err);
+                }
+            })
+    })
+}
+
+const model1 = mongoose.model('Computer_eval',chatgpt_eval_schema,'computer_security');
+const model2 = mongoose.model('pre_hist_eval',chatgpt_eval_schema,'history');
+const model3 = mongoose.model('sociology_eval',chatgpt_eval_schema,'social_science');
+
+CSVtoDBLoad('computer_security_test.csv','computer_security',model1);
+CSVtoDBLoad('prehistory_test.csv',"history",model2);
+CSVtoDBLoad('sociology_test.csv','social_science',model3);
