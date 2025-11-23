@@ -117,25 +117,32 @@ async function CSVtoDBLoad(file,domain,model) {
     //Firstly creates "data_rows": empty array to collect the objects from the key-value pairing    
     const data_rows = [];
     return new Promise((resolve, reject) => {
-        //Creates 
+        //Creates a stream of chunks of the file its passed
         fs.createReadStream(file)
+            //Creates the flow of readable data and removes the csv headers so it doesnt auto create incorrect headers
             .pipe(csv({headers: false}))
+            //This chunk takes the data {as an object} that is given from the pipeline and makes it manipulable 
             .on('data',(row) => {
+                //Grabs the values from the rows that has been read from the pipeline
                 const row_values = Object.values(row);
+                //It then pushes the key-value pairs to my array that holds these pairs 
                 data_rows.push({
                     question: row_values[0],
                     expected_answer: row_values[5],
                     chatgpt_response: "",
                     domain: domain
-                })
+                });
             })
+            //Asynchronously, we also add these into my db and if it fails it will display 
             .on('end',async() => {
                 try {
                     await model.insertMany(data_rows);
+                    console.log(`${domain}, has been loaded into your db`);
                     resolve();
                 }
                 catch(err) {
                     reject(err);
+                    console.log('Unsucessfully loaded into db');
                 }
             })
     })
