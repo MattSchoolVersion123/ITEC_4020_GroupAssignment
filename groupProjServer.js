@@ -153,7 +153,7 @@ async function CSVtoDBLoad(file,domain,model) {
                     const filledDataBaseCheck = await model.countDocuments({});
                     //Any count in my check above zero will just return nothing and just skip the inserts
                     
-                    if (filledDataBaseCheck > 0) {Console.log('DETECTED DATA: SKIP INSERT'); return resolve();}
+                    if (filledDataBaseCheck > 0) {console.log('DETECTED DATA: SKIP INSERT'); return resolve();}
 
                     await model.insertMany(data_rows);
                     console.log(`${domain}, has been loaded into your db`);
