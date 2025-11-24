@@ -6,6 +6,7 @@ const { WebSocketServer } = require('ws');
 const websocket = require('ws').Server;
 const csv = require('csv-parser');
 const fs = require('fs');
+const { buildRealtimeURL } = require('openai/realtime/internal-base.mjs');
 //Ports
 const port = 3000;
 const wsport = 8080;
@@ -78,7 +79,7 @@ app.get('/project', (req,res) => {
 
 //Tells that the server is running
 app.listen(port, () => {
-    console.log(`server running on http://localhost:${port}`)
+    console.log(`Server running on http://localhost:${port}`)
 })
 
 //Enables websocket connection and awaits for instruction [Need front-end to enchance websocket]
@@ -123,12 +124,24 @@ async function CSVtoDBLoad(file,domain,model) {
             .pipe(csv({headers: false}))
             //This chunk takes the data {as an object} that is given from the pipeline and makes it manipulable 
             .on('data',(row) => {
-                //Grabs the values from the rows that has been read from the pipeline
-                const row_values = Object.values(row);
+                //To formulate the answer we must find the key to that answer
+                let key_find = '';
+                if (row['5']) { 
+                    key_find = row['5'].trim().toUpperCase()
+                }else {key_find=null;}
+                //Create a case switch to determine which key is right
+                expected_answer_field = '';
+                switch(key_find) {
+                    case 'A' : expected_answer_field = row['1']; break;
+                    case 'B': expected_answer_field = row['2']; break;
+                    case 'C': expected_answer_field = row['3']; break;
+                    case 'D': expected_answer_field = row['4']; break;
+                }
+                
                 //It then pushes the key-value pairs to my array that holds these pairs 
                 data_rows.push({
-                    question: row_values[0],
-                    expected_answer: row_values[5],
+                    question: row[0],
+                    expected_answer: expected_answer_field,
                     chatgpt_response: "",
                     domain: domain
                 });
@@ -136,6 +149,11 @@ async function CSVtoDBLoad(file,domain,model) {
             //Asynchronously, we also add these into my db and if it fails it will display 
             .on('end',async() => {
                 try {
+                    //Firstly if i already ran my backend this will check if there is any docs in my db
+                    const filledDataBaseCheck = await model.countDocuments({});
+                    //Any count in my check above zero will just return nothing and just skip the inserts
+                    if (filledDataBaseCheck > 0) {return resolve(Console.log('DETECTED DATA: SKIP INSERT'));}
+
                     await model.insertMany(data_rows);
                     console.log(`${domain}, has been loaded into your db`);
                     resolve();
@@ -155,3 +173,4 @@ const model3 = mongoose.model('sociology_eval',chatgpt_eval_schema,'social_scien
 CSVtoDBLoad('computer_security_test.csv','computer_security',model1);
 CSVtoDBLoad('prehistory_test.csv',"history",model2);
 CSVtoDBLoad('sociology_test.csv','social_science',model3);
+
