@@ -7,12 +7,13 @@ const websocket = require('ws').Server;
 const csv = require('csv-parser');
 const fs = require('fs');
 const OpenAI = require('openai');
+require('dotenv').config();
 
 //Ports and AI key 
 const port = 3000;
 const wsport = 8080;
 const dbport = 27017
-const openai = new OpenAI({apiKey:}); //ADD KEY VIA ENV HERE DUE TO GITHUB REASONS 
+const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY}); //ADD KEY VIA ENV HERE DUE TO GITHUB REASONS 
 //Test
 
 //Creates websocketserver object for ws communication 
