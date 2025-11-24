@@ -6,11 +6,14 @@ const { WebSocketServer } = require('ws');
 const websocket = require('ws').Server;
 const csv = require('csv-parser');
 const fs = require('fs');
+const OpenAI = require('openai');
 
-//Ports
+//Ports and AI key 
 const port = 3000;
 const wsport = 8080;
 const dbport = 27017
+const openai = new OpenAI({apiKey:}); //ADD KEY VIA ENV HERE DUE TO GITHUB REASONS 
+//Test
 
 //Creates websocketserver object for ws communication 
 const wss = new WebSocketServer({port: wsport})
@@ -175,3 +178,53 @@ CSVtoDBLoad('computer_security_test.csv','computer_security',model1);
 CSVtoDBLoad('prehistory_test.csv',"history",model2);
 CSVtoDBLoad('sociology_test.csv','social_science',model3);
 
+//OpenAI Testing [Joshua's Code]
+app.get('/api/results', async (req, res) => {
+    console.log("Generating Analysis...");
+    const domains = ['History', 'Social_Science', 'Computer_Security'];
+    const results = {};
+
+    try {
+        // Send a WebSocket update to the frontend
+        broadcast("Status: Analysis Started...");
+
+        for (const domain of domains) {
+            broadcast(`Status: Analyzing ${domain}...`);
+            let totalTime = 0;
+            let correctCount = 0;
+            const testCount = 3; // Keep small for fast testing
+
+            for (let i = 1; i <= testCount; i++) {
+                const start = Date.now();
+                // Call OpenAI API
+                const completion = await openai.chat.completions.create({
+                    messages: [{ role: "user", content: `Fact about ${domain}` }],
+                    model: "gpt-3.5-turbo",
+                });
+                totalTime += (Date.now() - start);
+                
+                // Simple accuracy check simulation
+                if (completion.choices[0].message.content.length > 5) correctCount++;
+            }
+
+            results[domain] = {
+                accuracy: parseFloat(((correctCount / testCount) * 100).toFixed(2)),
+                avgTime: parseFloat((totalTime / testCount).toFixed(2))
+            };
+        }
+        
+        broadcast("Status: Complete!");
+        res.json(results);
+    } catch (error) {
+        console.error("API Error:", error.message);
+        broadcast("Status: Error occurred.");
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- WEBSOCKET HELPER ---
+function broadcast(msg) {
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) client.send(msg);
+    });
+}
