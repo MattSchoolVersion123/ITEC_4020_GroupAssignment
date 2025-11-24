@@ -6,7 +6,7 @@ const { WebSocketServer } = require('ws');
 const websocket = require('ws').Server;
 const csv = require('csv-parser');
 const fs = require('fs');
-const { buildRealtimeURL } = require('openai/realtime/internal-base.mjs');
+
 //Ports
 const port = 3000;
 const wsport = 8080;
