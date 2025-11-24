@@ -152,7 +152,8 @@ async function CSVtoDBLoad(file,domain,model) {
                     //Firstly if i already ran my backend this will check if there is any docs in my db
                     const filledDataBaseCheck = await model.countDocuments({});
                     //Any count in my check above zero will just return nothing and just skip the inserts
-                    if (filledDataBaseCheck > 0) {return resolve(Console.log('DETECTED DATA: SKIP INSERT'));}
+                    
+                    if (filledDataBaseCheck > 0) {Console.log('DETECTED DATA: SKIP INSERT'); return resolve();}
 
                     await model.insertMany(data_rows);
                     console.log(`${domain}, has been loaded into your db`);
