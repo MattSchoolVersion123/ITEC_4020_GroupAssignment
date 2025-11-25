@@ -14,7 +14,6 @@ const port = 3000;
 const wsport = 8080;
 const dbport = 27017
 const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY});
-//Test
 
 //Creates websocketserver object for ws communication 
 const wss = new WebSocketServer({port: wsport})
@@ -80,6 +79,11 @@ app.get('/project', (req,res) => {
     res.send('HELLO PROJECT PAGE');
 });
 
+//RESULTS GET PRINTED 
+app.get('/api/results',async (req,res) => {
+    const result = await analysis();
+    res.json(result);
+});
 
 //Tells that the server is running
 app.listen(port, () => {
@@ -117,6 +121,8 @@ const chatgpt_eval_schema = new Schema ({
     domain: String
 });
 
+
+
 //Creates an asynchronous function for CSV readability to DB loading
 async function CSVtoDBLoad(file,domain,model) {
     //Firstly creates "data_rows": empty array to collect the objects from the key-value pairing    
@@ -132,7 +138,7 @@ async function CSVtoDBLoad(file,domain,model) {
                 const row_values = Object.values(row);
                 //It then pushes the key-value pairs to my array that holds these pairs 
                 data_rows.push({
-                    question: row_values[0],
+                    question: `${row_values[0]} A: ${row_values[1]} B: ${row_values[2]} C: ${row_values[3]} D: ${row_values[4]} `,
                     expected_answer: row_values[5],
                     chatgpt_response: "",
                     domain: domain
@@ -163,7 +169,54 @@ const model1 = mongoose.model('Computer_eval',chatgpt_eval_schema,'computer_secu
 const model2 = mongoose.model('pre_hist_eval',chatgpt_eval_schema,'history');
 const model3 = mongoose.model('sociology_eval',chatgpt_eval_schema,'social_science');
 
+const domainModels = [
+    {domain: 'History', model: model1},
+    {domain: 'Social_Science', model: model2},
+    {domain: 'Computer_Security', model: model3}
+];
+
 CSVtoDBLoad('computer_security_test.csv','computer_security',model1);
 CSVtoDBLoad('prehistory_test.csv',"history",model2);
 CSVtoDBLoad('sociology_test.csv','social_science',model3);
+
+async function analysis(){
+    try {
+        const results = [];
+        for (i = 0; i<3; i++) {
+            const {domain,model} = domainModels[i];
+            console.log(`Analyzing ${domain}`);
+
+            const documentsInDB = await model.find({}).limit(50);
+            let totalTime = 0;
+            let correct = 0;
+            const DOCUMENTSINDBCOUNT = 50;
+
+            for(const doc of documentsInDB){
+                const start = Date.now();
+                const answerBack = await openai.chat.completions.create({
+                    messages: [ 
+                        {role: 'system', content:"You are a quiz key, only output the letter (A, B, C, or D) that you think answers the question and nothing else"},
+                        {role: 'user', content: doc.question}
+                    ],
+                    model:"gpt-3.5-turbo",
+                })
+                const GPTAnswer = answerBack.choices[0].message.content.trim().toUpperCase();
+                if (GPTAnswer === doc.expected_answer.toUpperCase()) {correct++;}
+                await model.updateOne(
+                    {_id: doc._id},
+                    {$set: {chatgpt_response: GPTAnswer}}
+                );
+                totalTime +=(Date.now()-start);
+                accuracy = (correct/DOCUMENTSINDBCOUNT) * 100;                
+            }
+            results.push({domain, accuracy, totalTime});
+        }
+        return results
+    }
+    catch(err) {
+        console.log(err);
+    }
+}
+
+
 
