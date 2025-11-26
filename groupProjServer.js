@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const csv = require('csv-parser');
 const fs = require('fs');
 const OpenAI = require('openai');
+const WebSocket = require('ws');
 require('dotenv').config();
 
 //Ports and AI key 
@@ -14,7 +15,19 @@ const dbport = 27017
 const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY});
 
 //Creates websocketserver object for ws communication 
-
+const wss = new WebSocket.Server ({port:wsport});
+wss.on("connection", (ws) => {
+    console.log('You are connected');
+    ws.send('This is a websocket test for connection');
+    ws.on('message', (message) => {
+        console.log("Received message, here it is:",message);
+        ws.send('Server received message:' + message)
+    });
+    ws.on('close', () => {
+        console.log('Disconnected')
+    });
+});
+console.log(`Websocket running on ws://localhost:${wsport}`)
 //Creates express app object
 const app = express();
 
@@ -137,37 +150,54 @@ CSVtoDBLoad('computer_security_test.csv','computer_security',model1);
 CSVtoDBLoad('prehistory_test.csv',"history",model2);
 CSVtoDBLoad('sociology_test.csv','social_science',model3);
 
-//
+//This function calls the analysis every time /api/results is opened
 async function analysis(){
+    //We then enter a try catch 
     try {
+        //This will store the sets of results in a json and send it back later
         const results = [];
+        //Only looping through 3 domains
         for (i = 0; i<3; i++) {
+            //Loops through each domain and model
             const {domain,model} = domainModels[i];
+            //Sends console that we are gonna analyze the domain x
             console.log(`Analyzing ${domain}`);
-
+            //Sets query limit to 50 for chatgpt
             const documentsInDB = await model.find({}).limit(50);
+            //sets variables for responsetime, correctness, and just a variable to showcase that we are questioning 50 
             let totalTime = 0;
             let correct = 0;
             const DOCUMENTSINDBCOUNT = 50;
-
+            //For every document in the database of limit 50
             for(const doc of documentsInDB){
+                //We start a clock with the time right now in ms
                 const start = Date.now();
+                //We then wait for the query from chatgpt
                 const answerBack = await openai.chat.completions.create({
                     messages: [ 
+                        //We send the message of the question we give chatgpt and the document as seen in user
                         {role: 'system', content:"You are a quiz key, only output the letter (A, B, C, or D) that you think answers the question and nothing else"},
                         {role: 'user', content: doc.question}
                     ],
+                    //We used this for simplicity 
                     model:"gpt-3.5-turbo",
                 })
+                /*GPTAnswer is the answerback we get where it grabs the first response from chatgpt (choices[0]) we grab the text with message.content
+                we then trim to avoid spaces and such from poisoning the test, and then force uppercase*/
                 const GPTAnswer = answerBack.choices[0].message.content.trim().toUpperCase();
+                //If the answer was expected a counter will increment
                 if (GPTAnswer === doc.expected_answer.toUpperCase()) {correct++;}
+                //It will update that model at the MongoDB Compass Id
                 await model.updateOne(
                     {_id: doc._id},
                     {$set: {chatgpt_response: GPTAnswer}}
                 );
+                //It will then calculate the total time from the time start - the time finished in ms
                 totalTime +=(Date.now()-start);
+                //Calcualte accuracy average
                 accuracy = (correct/DOCUMENTSINDBCOUNT) * 100;                
             }
+            //Will push to the results array
             results.push({domain, accuracy, totalTime});
         }
         return results
