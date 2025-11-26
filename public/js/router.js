@@ -1,3 +1,4 @@
+//HashBased routing
 const routes = ["home", "about", "education", "experience", "project"];
 
 function showPage(pageId) {

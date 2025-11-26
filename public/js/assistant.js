@@ -1,3 +1,4 @@
+//Cycles through assistant manager tests
 const assistantMessages = [
   "Welcome! This site presents our 4th-year ITEC project evaluating ChatGPT’s performance.",
   "Navigate through the sections above to explore the methodology, results, and background.",

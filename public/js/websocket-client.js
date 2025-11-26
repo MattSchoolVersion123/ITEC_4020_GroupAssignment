@@ -7,9 +7,9 @@ function setupWebSocket() {
 
   if (!statusEl || !messagesEl || !sendBtn) return;
 
-  // Confirm port 
+  //Creates websocket on main port
   socket = new WebSocket("ws://localhost:8080");
-
+  //Websocket communicators 
   socket.onopen = () => {
     statusEl.textContent = "WebSocket status: Connected";
   };

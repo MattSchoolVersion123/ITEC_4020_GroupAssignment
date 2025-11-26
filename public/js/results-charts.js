@@ -1,4 +1,4 @@
-
+//Grabs results
 function fetchResults() {
   return fetch("http://localhost:3000/api/results")
     .then((res) => {
@@ -7,10 +7,11 @@ function fetchResults() {
     });
 }
 
-
+//Function to display it on frontend
 function transformResults(raw) {
 
   const domains = raw.map(resp => resp.domain);
+  //Divided by 100 to fix *1000 error
   const accuracy = raw.map(resp => resp.accuracy/100);
   const avgTime = raw.map(resp => resp.totalTime);
 

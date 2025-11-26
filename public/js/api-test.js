@@ -1,3 +1,4 @@
+//Buttons and calls for /api/add
 function setupAddTest() {
   const form = document.getElementById("addForm");
   const btn = document.getElementById("testAddBtn");
