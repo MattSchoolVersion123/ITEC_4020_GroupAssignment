@@ -2,8 +2,6 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const { WebSocketServer } = require('ws');
-const websocket = require('ws').Server;
 const csv = require('csv-parser');
 const fs = require('fs');
 const OpenAI = require('openai');
@@ -16,7 +14,6 @@ const dbport = 27017
 const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY});
 
 //Creates websocketserver object for ws communication 
-const wss = new WebSocketServer({port: wsport})
 
 //Creates express app object
 const app = express();
@@ -53,32 +50,6 @@ app.get('/api/add', (req,res) => {
     res.json({result});
 });
 
-//Get route to serve to home page 
-app.get('/', (req,res) => {
-    res.redirect('/home');
-})
-
-//Home Page
-app.get('/home', (req,res) => {
-    res.send('HELLO HOMEPAGE');
-});
-//About Page
-app.get('/about', (req,res) => {
-    res.send("HELLO ABOUT PAGE");
-});
-//Education Page
-app.get('/education', (req,res) => {
-    res.send("HELLO EDUCATION");
-});
-//Experience Page
-app.get('/experience',(req,res) => {
-    res.send('HELLO EXPERIENCE');
-});
-//Project Page [This is where we'll show the database analysis]
-app.get('/project', (req,res) => {
-    res.send('HELLO PROJECT PAGE');
-});
-
 //RESULTS GET PRINTED 
 app.get('/api/results',async (req,res) => {
     const result = await analysis();
@@ -90,20 +61,7 @@ app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`)
 })
 
-//Enables websocket connection and awaits for instruction [Need front-end to enchance websocket]
-wss.on('connection', function (ws) { 
-    console.log('Connected to client')
-    ws.send("Connected to Server");
-    ws.on('message', function(message){
-        console.log(message);
-        console.log(message.toString('ascii'));
-    });
-});
-
-
 //PART TWO: CHATGPT: EFFICIENCY EVALUATION [BACKEND]
-
-
 //If main() has an error it will display err in console log
 main().catch(err => console.log(err));
 
@@ -179,6 +137,7 @@ CSVtoDBLoad('computer_security_test.csv','computer_security',model1);
 CSVtoDBLoad('prehistory_test.csv',"history",model2);
 CSVtoDBLoad('sociology_test.csv','social_science',model3);
 
+//
 async function analysis(){
     try {
         const results = [];
