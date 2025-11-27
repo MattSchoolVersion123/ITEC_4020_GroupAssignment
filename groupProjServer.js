@@ -151,59 +151,73 @@ CSVtoDBLoad('prehistory_test.csv',"history",model2);
 CSVtoDBLoad('sociology_test.csv','social_science',model3);
 
 //This function calls the analysis every time /api/results is opened
-async function analysis(){
-    //We then enter a try catch 
+async function analysis() {
+    console.log("Starting Analysis...");
+    const BATCH_SIZE = 15; 
+
     try {
-        //This will store the sets of results in a json and send it back later
         const results = [];
-        //Only looping through 3 domains
-        for (i = 0; i<3; i++) {
-            //Loops through each domain and model
-            const {domain,model} = domainModels[i];
-            //Sends console that we are gonna analyze the domain x
-            console.log(`Analyzing ${domain}`);
-            //Sets query limit to 50 for chatgpt
+        for (let i = 0; i < 3; i++) {
+            const { domain, model } = domainModels[i];
+            console.log(`Analyzing ${domain}...`);
+
+            // 1. Get 50 questions
             const documentsInDB = await model.find({}).limit(50);
-            //sets variables for responsetime, correctness, and just a variable to showcase that we are questioning 50 
-            let totalTime = 0;
+            const DOCUMENTSINDBCOUNT = documentsInDB.length;
+
+            let totalLatencySum = 0; // The sum of all 50 questions
             let correct = 0;
-            const DOCUMENTSINDBCOUNT = 50;
-            //For every document in the database of limit 50
-            for(const doc of documentsInDB){
-                //We start a clock with the time right now in ms
-                const start = Date.now();
-                //We then wait for the query from chatgpt
-                const answerBack = await openai.chat.completions.create({
-                    messages: [ 
-                        //We send the message of the question we give chatgpt and the document as seen in user
-                        {role: 'system', content:"You are a quiz key, only output the letter (A, B, C, or D) that you think answers the question and nothing else"},
-                        {role: 'user', content: doc.question}
-                    ],
-                    //We used this for simplicity 
-                    model:"gpt-3.5-turbo",
-                })
-                /*GPTAnswer is the answerback we get where it grabs the first response from chatgpt (choices[0]) we grab the text with message.content
-                we then trim to avoid spaces and such from poisoning the test, and then force uppercase*/
-                const GPTAnswer = answerBack.choices[0].message.content.trim().toUpperCase();
-                //If the answer was expected a counter will increment
-                if (GPTAnswer === doc.expected_answer.toUpperCase()) {correct++;}
-                //It will update that model at the MongoDB Compass Id
-                await model.updateOne(
-                    {_id: doc._id},
-                    {$set: {chatgpt_response: GPTAnswer}}
-                );
-                //It will then calculate the total time from the time start - the time finished in ms
-                totalTime +=(Date.now()-start);
-                //Calcualte accuracy average
-                accuracy = (correct/DOCUMENTSINDBCOUNT) * 100;                
+
+            // 2. Process in Batches
+            for (let j = 0; j < DOCUMENTSINDBCOUNT; j += BATCH_SIZE) {
+                const batch = documentsInDB.slice(j, j + BATCH_SIZE);
+                
+                const batchPromises = batch.map(async (doc) => {
+                    const start = Date.now();
+                    const answerBack = await openai.chat.completions.create({
+                        messages: [
+                            { role: 'system', content: "You are a quiz key, only output the letter (A, B, C, or D)..." },
+                            { role: 'user', content: doc.question }
+                        ],
+                        model: "gpt-3.5-turbo",
+                        max_tokens: 1 
+                    });
+                    const latency = Date.now() - start;
+                    
+                    // Grade and Update
+                    const GPTAnswer = answerBack.choices[0].message.content.trim().toUpperCase();
+                    const isCorrect = (GPTAnswer === doc.expected_answer.toUpperCase());
+                    await model.updateOne({ _id: doc._id }, { $set: { chatgpt_response: GPTAnswer } });
+
+                    return { latency, isCorrect };
+                });
+
+                const batchResults = await Promise.all(batchPromises);
+                
+                // Sum up the time for this batch
+                batchResults.forEach(res => {
+                    totalLatencySum += res.latency;
+                    if (res.isCorrect) correct++;
+                });
             }
-            //Will push to the results array
-            results.push({domain, accuracy, totalTime});
+
+            // 3. FINAL CALCULATION
+            const accuracy = (correct / DOCUMENTSINDBCOUNT) * 100;
+            
+            // --- THIS IS THE FIX ---
+            // We divide the Total Sum (e.g., 16000ms) by the Count (50)
+            const calculatedAverage = totalLatencySum / DOCUMENTSINDBCOUNT;
+            
+            console.log(`Domain: ${domain} | Total Sum: ${totalLatencySum} | Count: ${DOCUMENTSINDBCOUNT} | Avg: ${calculatedAverage}`);
+
+            // Send 'calculatedAverage' but label it 'totalTime' so the Frontend accepts it
+            results.push({ domain, accuracy, totalTime: calculatedAverage });
         }
-        return results
+        return results;
     }
-    catch(err) {
-        console.log(err);
+    catch (err) {
+        console.log("Analysis Error:", err);
+        return [];
     }
 }
 
